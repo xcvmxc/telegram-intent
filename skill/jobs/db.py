@@ -15,7 +15,8 @@ Tables:
               Dedup key is `link_norm`. Non-matching postings are not
               stored here — their message is simply marked processed.
 
-State lives at ~/.claude/jobs/jobs.db (override with JOBS_DB for testing).
+State lives at $TGJOBS_HOME/jobs/jobs.db (default ~/.tgjobs; override with
+TGJOBS_HOME, or JOBS_DB for the DB path directly).
 
 Stdlib only.
 """
@@ -26,8 +27,11 @@ import pathlib
 import sqlite3
 import urllib.parse
 
+TGJOBS_HOME = pathlib.Path(
+    os.environ.get("TGJOBS_HOME") or (pathlib.Path.home() / ".tgjobs")
+)
 DB_PATH = pathlib.Path(
-    os.environ.get("JOBS_DB") or (pathlib.Path.home() / ".claude" / "jobs" / "jobs.db")
+    os.environ.get("JOBS_DB") or (TGJOBS_HOME / "jobs" / "jobs.db")
 )
 
 _SCHEMA = """

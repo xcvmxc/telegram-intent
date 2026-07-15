@@ -1,141 +1,145 @@
 # Telegram Job Scanner
 
-Скилл для [Claude Code](https://claude.com/claude-code), который просматривает
-Telegram-каналы, на которые **вы уже подписаны**, оставляет только вакансии,
-подходящие под ваш запрос, и складывает их в аккуратный Markdown-файл — по
-одной команде: `/tgjobs`.
+A skill for AI coding agents that scans the Telegram channels **you already
+follow**, keeps only the vacancies matching what you're looking for, and writes
+them to a tidy Markdown file — on demand, with one command: `/tgjobs`.
 
-Отбор делает сам Claude, прямо внутри вашей сессии Claude Code.
-**Не нужен ни платный AI-ключ, ни сервер** — единственное, что потребуется, это
-бесплатный личный API-ключ Telegram.
+The matching is done by the agent itself, right inside your session.
+**There's no AI API key to buy and no server to run** — the only credential you
+need is a free personal Telegram API key.
+
+**Works with:** Claude Code · OpenAI Codex · Gemini CLI · Cursor.
+**Languages:** English (default) or Russian — chosen at install.
 
 ---
 
-## Что он делает
+## What it does
 
 ```
 /tgjobs
-  → читает список каналов          (Telegram Sources.md)
-  → тянет новые посты с прошлого запуска (курсор на канал, лишнего не качает)
-  → по каждому посту Claude решает: это реальная вакансия? подходит вам?
-  → сохраняет подходящие            (вакансии+2026-07-13_1430.md)
+  → reads your channel list          (Telegram Sources.md)
+  → fetches new posts since last run  (per-channel cursor, nothing re-fetched)
+  → for each posting, the agent decides: is this a real job? does it match you?
+  → writes the matches                (matches+2026-07-13_1430.md)
 ```
 
-Вы управляете двумя обычными текстовыми файлами:
+You control two plain-text files (in your chosen language):
 
-| Файл | Для чего |
-|------|----------|
-| `Search Criteria.md`  | Что вы ищете, простыми словами. Отредактируйте — и `/tgjobs` начнёт отбирать по-новому. |
-| `Telegram Sources.md` | Какие каналы/группы сканировать, по одному в строке. |
+| File | What it's for |
+|------|---------------|
+| `Search Criteria.md`  | What you're looking for, in plain language. Edit it to change what `/tgjobs` keeps. |
+| `Telegram Sources.md` | Which channels/groups to scan, one per line. |
 
-Оба лежат в папке, которую вы выбираете сами (например, `~/job-hunt`), так что
-результаты можно открыть в любом редакторе, Obsidian, Finder — где угодно.
+The scanner's backend lives in a shared, agent-neutral home (`~/.tgjobs`), so
+every agent you install it into uses the same channels, criteria and history.
 
-## Что нужно
+## Requirements
 
-- **Claude Code** (это скилл для него).
-- **[uv](https://astral.sh/uv)** — запускает библиотеку Telegram в изолированном
-  окружении, без установки в систему. Установка: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- **Аккаунт Telegram**, состоящий в каналах, которые вы хотите сканировать.
+- One or more of: **Claude Code**, **OpenAI Codex**, **Gemini CLI**, **Cursor**.
+- **[uv](https://astral.sh/uv)** — runs the Telegram library in an isolated env.
+  Install: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- A **Telegram account** that is a member of the channels you want to scan.
 
-## Установка
+## Install
 
-**Простой способ — одна команда, без клонирования и сборки.** Вставьте в
-терминал:
+**One command, no cloning.** It asks which language and which agent(s) to set
+up, then installs:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xcvmxc/telegram-job/main/install.sh | bash
 ```
 
-Скрипт скачает скилл и скопирует его в `~/.claude/`.
-
-<details>
-<summary>Предпочитаете клонировать репозиторий?</summary>
+Prefer non-interactive? Pass flags (re-run any time to add another agent):
 
 ```bash
-git clone https://github.com/xcvmxc/telegram-job.git
-cd telegram-job
-./install.sh
+curl -fsSL .../install.sh | bash -s -- --lang en --agent claude,codex
+# --lang en|ru   --agent claude|codex|gemini|cursor|all (comma-separated)
+```
+
+<details><summary>From a clone</summary>
+
+```bash
+git clone https://github.com/xcvmxc/telegram-job.git && cd telegram-job
+./install.sh                 # interactive
+./install.sh --lang ru --agent all
 ```
 </details>
 
-Установщик делает резервную копию всего, что перезаписывает; ваши `jobs.db` и
-`config.json` он не трогает. Затем в Claude Code:
+The installer never touches your state (`~/.tgjobs/jobs/jobs.db`) or config, and
+backs up any agent config it merges into. **Codex** needs one manual line in
+`~/.codex/config.toml` (the installer prints it) so `/tgjobs` may reach the
+network and write outside the project — this is Codex's sandbox, by design.
 
-```
-/tgjobs-setup
-```
+Then, in your agent, run **`/tgjobs-setup`** — a wizard that walks you through:
 
-Мастер проведёт вас через три шага:
+1. **Telegram API key** — free, ~1 min at [my.telegram.org](https://my.telegram.org) → *API development tools*.
+2. **Log in** — a one-time Telegram login.
+3. **Job folder** — where your files and results live; the two editable files
+   are scaffolded there in your chosen language.
 
-1. **API-ключ Telegram** — создаётся бесплатно на
-   [my.telegram.org](https://my.telegram.org) → *API development tools*
-   (займёт ~1 минуту). Вы вставляете `api_id` и `api_hash`.
-2. **Вход** — разовый вход в Telegram (введёте код, который придёт в приложение).
-3. **Папка для работы** — выберите, где хранить файлы и результаты; мастер
-   положит туда `Search Criteria.md` и `Telegram Sources.md` для редактирования.
+## Use it
 
-## Как пользоваться
-
-1. Отредактируйте **`Search Criteria.md`** — опишите нужные роли.
-2. Отредактируйте **`Telegram Sources.md`** — добавьте свои каналы (по одному в
-   строке). Для **приватных** каналов сначала вступите по инвайт-ссылке в
-   Telegram, потом добавьте её. Посмотреть все каналы, в которых состоит ваш
-   аккаунт:
+1. Edit **`Search Criteria.md`** — describe the roles you want.
+2. Edit **`Telegram Sources.md`** — add your channels (one per line). For
+   **private** channels, join the invite link first, then add it. List every
+   channel your account is in with:
    ```bash
-   uv run --with telethon python ~/.claude/telegram/tg_scan.py list
+   uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py list
    ```
-3. Запустите **`/tgjobs`**. Откройте файл `вакансии+...md`, который он создаст.
+3. Run **`/tgjobs`**. Read the `matches+...md` file it writes.
 
-Запускайте `/tgjobs` когда угодно — он всегда смотрит только посты новее
-прошлого запуска, поэтому повторы дешёвые и без дубликатов.
+Run `/tgjobs` whenever you like — it only looks at posts newer than the last
+run, from any agent, so repeats are cheap and never duplicate.
 
-### Как поменять, что искать
+**To change what you search for:** edit `Search Criteria.md`. **Sources:** edit
+`Telegram Sources.md`. Nothing else — no re-setup.
 
-Просто отредактируйте `Search Criteria.md` и снова запустите `/tgjobs`. Больше
-ничего — ни повторной настройки, ни команд. То же с источниками: правьте
-`Telegram Sources.md`.
+## Language
 
-## Из чего это собрано
+Choose English or Russian at install. It sets the conversation language, the
+wording of the two editable files, and the wording of the output file. To switch
+later, re-run the installer with the other `--lang`.
+
+## How it's put together
 
 ```
-~/.claude/
-  commands/tgjobs.md          конвейер /tgjobs (оркеструет Claude)
-  commands/tgjobs-setup.md    мастер настройки
-  jobs/
-    config.py               резолвит путь к папке и файлам
-    db.py                   схема SQLite + дедуп ссылок
-    scan.py                 pull / unclassified / save / emit
-    setup.py                хелперы настройки (check / save-creds / init / status)
-    jobs.db                 состояние (курсоры, виденные посты, найденные вакансии)
-    config.json             { "folder": "..." }
-    templates/              два файла, которые кладутся в вашу папку
-  telegram/
-    tg_scan.py              фетчер на Telethon (сырые сообщения → JSON)
-    credentials.env         ваши TG_API_ID / TG_API_HASH
-    jobscan.session         ваша сессия входа в Telegram
+~/.tgjobs/                          shared, agent-neutral backend
+  jobs/{config,db,scan,setup}.py    the pipeline (stdlib Python)
+  jobs/jobs.db  jobs/config.json    state + config (never overwritten)
+  jobs/templates/{en,ru}/           scaffolded files, per language
+  telegram/tg_scan.py               Telethon fetcher
+  telegram/credentials.env          your TG_API_ID / TG_API_HASH
+  telegram/jobscan.session          your Telegram login session
+
+per agent (thin adapter → points at ~/.tgjobs):
+  Claude Code   ~/.claude/commands/tgjobs{,-setup}.md
+  Codex         ~/.agents/skills/tgjobs{,-setup}/SKILL.md (+ ~/.codex/skills/)
+  Gemini CLI    ~/.gemini/commands/tgjobs{,-setup}.toml   (+ settings.json)
+  Cursor        ~/.cursor/skills/tgjobs{,-setup}/SKILL.md (+ permissions.json)
 ```
 
-## Про правила Telegram
+## A note on Telegram's terms
 
-Инструмент читает каналы через ваш собственный аккаунт (через
-[Telethon](https://docs.telethon.dev/)) — тот же контент, что вы и так видите в
-приложении. Автоматизация пользовательского аккаунта — «серая зона» по правилам
-Telegram, и при агрессивном использовании аккаунт могут ограничить или
-заблокировать. Сканируйте в человеческом темпе, только каналы, где вы состоите,
-и на свой риск.
+This reads channels through your own user account (via
+[Telethon](https://docs.telethon.dev/)) — the same content you already see in
+the app. Automating a user account is a grey area under Telegram's Terms and,
+used aggressively, can get an account limited or banned. Scan at a human pace,
+only channels you're a member of, and use it at your own risk.
 
-## Удаление
+## Uninstall
 
 ```bash
-rm -rf ~/.claude/jobs ~/.claude/telegram/tg_scan.py \
-       ~/.claude/telegram/credentials.env ~/.claude/telegram/jobscan.session \
-       ~/.claude/commands/tgjobs.md ~/.claude/commands/tgjobs-setup.md
+rm -rf ~/.tgjobs \
+       ~/.claude/commands/tgjobs*.md \
+       ~/.agents/skills/tgjobs* ~/.codex/skills/tgjobs* \
+       ~/.gemini/commands/tgjobs*.toml \
+       ~/.cursor/skills/tgjobs*
 ```
 
-Вашу рабочую папку (критерии, источники, результаты) скрипт не трогает — удалите
-её сами, если нужно.
+Merged agent configs (`~/.gemini/settings.json`, `~/.cursor/permissions.json`,
+`~/.codex/config.toml`) keep `.tgjobs.bak` backups; edit them back by hand if
+you want the allowlist entries gone. Your job folder is left alone.
 
-## Лицензия
+## License
 
-[MIT](LICENSE) — используйте, форкайте, распространяйте.
+[MIT](LICENSE) — use it, fork it, ship it.

@@ -3,26 +3,26 @@
 
 It logs in once (interactively) with a Telethon user session, then emits recent
 messages from the requested channels as JSON. It does NOT decide what is a job
-posting — that reasoning lives in ~/.claude/commands/tgjobs.md. This script only
+posting — that reasoning lives in the /tgjobs command prompt. This script only
 fetches raw messages + any links it finds, and builds stable permalinks.
 
 Run it through uv so Telethon is provided in an isolated env (no system installs):
 
     # one-time login (you type the SMS code; creates the session file)
-    uv run --with telethon python ~/.claude/telegram/tg_scan.py login
+    uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py login
 
     # list the channels your account is in (to grab refs / ids)
-    uv run --with telethon python ~/.claude/telegram/tg_scan.py list
+    uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py list
 
     # scan one or more channels, last 14 days, JSON to stdout
-    uv run --with telethon python ~/.claude/telegram/tg_scan.py scan \
+    uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py scan \
         --channel @somejobschannel --channel "t.me/+abcInviteHash" --days 14
 
-Credentials are read from ~/.claude/telegram/credentials.env:
+Credentials are read from ~/.tgjobs/telegram/credentials.env:
     TG_API_ID=1234567
     TG_API_HASH=0123456789abcdef0123456789abcdef
 (or from the TG_API_ID / TG_API_HASH environment variables).
-The session is stored at ~/.claude/telegram/jobscan.session.
+The session is stored at ~/.tgjobs/telegram/jobscan.session.
 """
 from __future__ import annotations
 
@@ -33,7 +33,9 @@ import os
 import pathlib
 import sys
 
-BASE = pathlib.Path.home() / ".claude" / "telegram"
+BASE = pathlib.Path(
+    os.environ.get("TGJOBS_HOME") or (pathlib.Path.home() / ".tgjobs")
+) / "telegram"
 SESSION = str(BASE / "jobscan")
 CREDS_FILE = BASE / "credentials.env"
 
@@ -59,16 +61,16 @@ def load_creds() -> tuple[int, str]:
                 api_hash = value
     if not api_id or not api_hash:
         eprint(
-            "Нет учётных данных Telegram.\n"
-            f"  Укажите TG_API_ID и TG_API_HASH в {CREDS_FILE}\n"
-            "  (получить их можно на https://my.telegram.org -> API development tools),\n"
-            "  либо задайте их как переменные окружения."
+            "Missing Telegram credentials.\n"
+            f"  Put TG_API_ID and TG_API_HASH in {CREDS_FILE}\n"
+            "  (get them from https://my.telegram.org -> API development tools),\n"
+            "  or export them as environment variables."
         )
         sys.exit(2)
     try:
         return int(api_id), api_hash
     except ValueError:
-        eprint(f"TG_API_ID должен быть целым числом, получено: {api_id!r}")
+        eprint(f"TG_API_ID must be an integer, got: {api_id!r}")
         sys.exit(2)
 
 
@@ -161,7 +163,7 @@ def cmd_login(_args: argparse.Namespace) -> int:
     with make_client() as client:
         me = client.get_me()
         name = getattr(me, "username", None) or getattr(me, "first_name", "?")
-        eprint(f"Вход выполнен как @{name}. Сессия сохранена в {SESSION}.session")
+        eprint(f"Logged in as @{name}. Session saved at {SESSION}.session")
     return 0
 
 
@@ -225,7 +227,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 errors.append({"channel": ref, "error": f"{type(exc).__name__}: {exc}"})
                 continue
             if entity is None:
-                errors.append({"channel": ref, "error": "канал не найден среди ваших диалогов — вы состоите в нём?"})
+                errors.append({"channel": ref, "error": "not found in your dialogs — are you a member of this channel?"})
                 continue
             count = 0
             iter_kwargs = {"limit": args.limit}
@@ -264,7 +266,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
                     }
                 )
                 count += 1
-            eprint(f"  {ref}: {count} сообщений")
+            eprint(f"  {ref}: {count} messages")
 
     json.dump(
         {"messages": results, "errors": errors},

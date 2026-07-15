@@ -15,7 +15,7 @@ Markdown-файл. Без веб-скрейпинга. Без подтвержд
   каналу в строке. Пользователь редактирует этот файл, чтобы добавить/убрать каналы.
 - **Критерии:** `Search Criteria.md` в той же папке — описание простыми словами,
   что считается подходящим. Ты читаешь его и используешь как эталон.
-- **Состояние:** `~/.claude/jobs/jobs.db` (SQLite): `channels` (курсор на канал),
+- **Состояние:** `~/.tgjobs/jobs/jobs.db` (SQLite): `channels` (курсор на канал),
   `messages` (сырые посты со ссылками), `jobs` (найденные вакансии, дедуп по
   нормализованной ссылке).
 - **Результат:** `вакансии+ГГГГ-ММ-ДД_ЧЧММ.md` в рабочей папке — только вакансии,
@@ -27,14 +27,14 @@ Markdown-файл. Без веб-скрейпинга. Без подтвержд
 
 ### 0. Загрузить критерии поиска
 
-    cat "$(python3 ~/.claude/jobs/config.py criteria-file)"
+    cat "$(python3 ~/.tgjobs/jobs/config.py criteria-file)"
 
 Держи этот текст как эталон для шага 3. Если файла нет — скажи пользователю
 запустить `/tgjobs-setup`.
 
 ### 1. Получить новые сообщения из Telegram
 
-    python3 ~/.claude/jobs/scan.py pull
+    python3 ~/.tgjobs/jobs/scan.py pull
 
 Проходит по всем каналам из `Telegram Sources.md`, продолжает каждый с его
 курсора (или за последние 3 дня при первом сканировании канала), сохраняет
@@ -47,7 +47,7 @@ Markdown-файл. Без веб-скрейпинга. Без подтвержд
 
 ### 2. Забрать сообщения, ждущие классификации
 
-    python3 ~/.claude/jobs/scan.py unclassified --limit 100
+    python3 ~/.tgjobs/jobs/scan.py unclassified --limit 100
 
 Возвращает JSON-массив. Каждый элемент:
 
@@ -85,7 +85,7 @@ Markdown-файл. Без веб-скрейпинга. Без подтвержд
 
 Ответь одним массивом и сохрани его:
 
-    python3 ~/.claude/jobs/scan.py save-classifications --json '<JSON>'
+    python3 ~/.tgjobs/jobs/scan.py save-classifications --json '<JSON>'
 
 Форма JSON (при большом объёме передавай через stdin с `--json -`):
 
@@ -110,7 +110,7 @@ Markdown-файл. Без веб-скрейпинга. Без подтвержд
 
 ### 4. Записать файл результата
 
-    python3 ~/.claude/jobs/scan.py emit-files --since '<run_start ISO>'
+    python3 ~/.tgjobs/jobs/scan.py emit-files --since '<run_start ISO>'
 
 Пишет `вакансии+ГГГГ-ММ-ДД_ЧЧММ.md` в рабочую папку. Если подходящих нет — файл
 не создаётся; так и скажи.
