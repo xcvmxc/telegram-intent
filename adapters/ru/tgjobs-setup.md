@@ -10,7 +10,7 @@
 
 ## Шаг 0 — Проверить пререквизиты
 
-    python3 ~/.claude/jobs/setup.py check
+    python3 ~/.tgjobs/jobs/setup.py check
 
 Возвращает `uv_installed`, `config_exists`, `creds_exist`, `session_exists`.
 
@@ -34,7 +34,7 @@
 
 Когда пользователь их пришлёт, сохрани (никогда не выводи hash обратно):
 
-    python3 ~/.claude/jobs/setup.py save-creds --api-id <ID> --api-hash <HASH>
+    python3 ~/.tgjobs/jobs/setup.py save-creds --api-id <ID> --api-hash <HASH>
 
 ## Шаг 2 — Вход в Telegram (выполняет пользователь)
 
@@ -42,7 +42,7 @@
 **он** запускает это в терминале (ты не можешь ввести код за него). Дай ему
 команду дословно:
 
-    uv run --with telethon python ~/.claude/telegram/tg_scan.py login
+    uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py login
 
 Скажи: введи номер телефона в международном формате (напр. +49...), затем код,
 который Telegram пришлёт (и пароль 2FA, если он есть). При успехе выводится
@@ -53,7 +53,7 @@
 Спроси, где пользователь хочет хранить свои файлы и результаты. Предложи
 значение по умолчанию, например `~/job-hunt`. Затем:
 
-    python3 ~/.claude/jobs/setup.py init --folder "<PATH>"
+    python3 ~/.tgjobs/jobs/setup.py init --folder "<PATH>" --lang ru
 
 Это запишет `config.json` и положит в папку два файла (существующие файлы
 никогда не перезаписываются):
@@ -70,11 +70,11 @@
 2. **`Telegram Sources.md`** — добавь по одному каналу в строке. Напомни: для
    **приватных** каналов сначала нужно вступить по инвайт-ссылке в Telegram, а
    список всех каналов, где состоит аккаунт, можно получить командой
-   `uv run --with telethon python ~/.claude/telegram/tg_scan.py list`.
+   `uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py list`.
 
 Заверши, подтвердив состояние:
 
-    python3 ~/.claude/jobs/setup.py status
+    python3 ~/.tgjobs/jobs/setup.py status
 
 Затем скажи: как только оба файла заполнены, запусти **`/tgjobs`**, чтобы
 получить первую подборку подходящих вакансий.

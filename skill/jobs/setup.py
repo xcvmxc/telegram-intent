@@ -7,9 +7,11 @@ Subcommands:
 
     check                    report what's installed / configured (JSON)
     save-creds --api-id ID --api-hash HASH
-                             write ~/.claude/telegram/credentials.env
-    init --folder PATH       write config.json and scaffold the two editable
-                             files into PATH (never clobbers existing edits)
+                             write $TGJOBS_HOME/telegram/credentials.env
+    init --folder PATH [--lang en|ru]
+                             write config.json and scaffold the two editable
+                             files (in the chosen language) into PATH
+                             (never clobbers existing edits)
     status                   print current config + DB counts (JSON)
 
 Stdlib only.
@@ -24,10 +26,11 @@ import sys
 
 import config
 
-TG_DIR = pathlib.Path.home() / ".claude" / "telegram"
+TG_DIR = config.TGJOBS_HOME / "telegram"
 CREDS_FILE = TG_DIR / "credentials.env"
 SESSION_FILE = TG_DIR / "jobscan.session"
-# Templates ship next to this script (installed at ~/.claude/jobs/templates/).
+# Templates ship next to this script, one subdir per language:
+#   $TGJOBS_HOME/jobs/templates/{en,ru}/{Search Criteria.md, Telegram Sources.md}
 TEMPLATES_DIR = pathlib.Path(__file__).resolve().parent / "templates"
 
 
@@ -46,10 +49,10 @@ def cmd_save_creds(args: argparse.Namespace) -> int:
     api_id = (args.api_id or "").strip()
     api_hash = (args.api_hash or "").strip()
     if not api_id.isdigit():
-        print(f"TG_API_ID должен быть числом, получено: {api_id!r}", file=sys.stderr)
+        print(f"TG_API_ID must be a number, got: {api_id!r}", file=sys.stderr)
         return 2
     if len(api_hash) < 16:
-        print("TG_API_HASH слишком короткий — скопируйте полный hash с my.telegram.org.",
+        print("TG_API_HASH looks too short — copy the full hash from my.telegram.org.",
               file=sys.stderr)
         return 2
     TG_DIR.mkdir(parents=True, exist_ok=True)
@@ -67,13 +70,17 @@ def cmd_save_creds(args: argparse.Namespace) -> int:
 def cmd_init(args: argparse.Namespace) -> int:
     folder = pathlib.Path(args.folder).expanduser()
     folder.mkdir(parents=True, exist_ok=True)
+    lang = (args.lang or config.DEFAULT_LANG).strip().lower()
+    if lang not in ("en", "ru"):
+        lang = config.DEFAULT_LANG
 
     config.CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     config.CONFIG_PATH.write_text(
-        json.dumps({"folder": str(folder)}, ensure_ascii=False, indent=2) + "\n",
+        json.dumps({"folder": str(folder), "lang": lang}, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
+    lang_dir = TEMPLATES_DIR / lang
     scaffolded = []
     skipped = []
     for filename in (config.CRITERIA_FILENAME, config.SOURCES_FILENAME):
@@ -81,9 +88,9 @@ def cmd_init(args: argparse.Namespace) -> int:
         if dest.exists():
             skipped.append(str(dest))  # never overwrite the user's edits
             continue
-        src = TEMPLATES_DIR / filename
+        src = lang_dir / filename
         if not src.exists():
-            print(f"файл шаблона не найден: {src}", file=sys.stderr)
+            print(f"template missing: {src}", file=sys.stderr)
             return 2
         shutil.copyfile(src, dest)
         scaffolded.append(str(dest))
@@ -91,6 +98,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     print(json.dumps({
         "config_written": str(config.CONFIG_PATH),
         "folder": str(folder),
+        "lang": lang,
         "scaffolded": scaffolded,
         "already_existed": skipped,
     }, ensure_ascii=False, indent=2))
@@ -109,6 +117,7 @@ def cmd_status(_args: argparse.Namespace) -> int:
     }
     print(json.dumps({
         "folder": str(data["folder"]),
+        "lang": data["lang"],
         "sources_file": str(config.sources_file()),
         "criteria_file": str(config.criteria_file()),
         "creds_exist": CREDS_FILE.exists(),
@@ -130,6 +139,7 @@ def main() -> int:
 
     p_init = sub.add_parser("init", help="Write config.json and scaffold editable files.")
     p_init.add_argument("--folder", required=True)
+    p_init.add_argument("--lang", default=config.DEFAULT_LANG, choices=["en", "ru"])
 
     sub.add_parser("status", help="Print current config + DB counts.")
 

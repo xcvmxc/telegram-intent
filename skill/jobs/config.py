@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """Config for the Telegram job scanner.
 
-Single source of truth: ~/.claude/jobs/config.json
+Everything lives under TGJOBS_HOME (default ~/.tgjobs), so the product is
+agent-neutral — Claude Code, Codex, Gemini and Cursor all point at the same
+backend and share one state DB.
 
-    { "folder": "/absolute/path/to/job-hunt" }
+Single source of truth: $TGJOBS_HOME/jobs/config.json
 
-`folder` is the one thing the user chooses. It holds the two files they edit
-and receives the output:
+    { "folder": "/absolute/path/to/job-hunt", "lang": "en" }
+
+`folder` holds the two files the user edits and receives the output:
 
     <folder>/Search Criteria.md    what to look for (read by the classifier)
     <folder>/Telegram Sources.md   channels/groups to scan
-    <folder>/вакансии+<stamp>.md    output written by `emit-files`
+    <folder>/matches+<stamp>.md    output written by `emit-files`
 
-For testing / power users, JOBS_CONFIG overrides the config path.
+`lang` (en|ru, default en) only affects the wording of the emitted output file.
+
+Overrides for testing/power users: TGJOBS_HOME, JOBS_CONFIG.
 
 Stdlib only.
 """
@@ -23,17 +28,22 @@ import os
 import pathlib
 import sys
 
+TGJOBS_HOME = pathlib.Path(
+    os.environ.get("TGJOBS_HOME") or (pathlib.Path.home() / ".tgjobs")
+)
+
 CONFIG_PATH = pathlib.Path(
-    os.environ.get("JOBS_CONFIG") or (pathlib.Path.home() / ".claude" / "jobs" / "config.json")
+    os.environ.get("JOBS_CONFIG") or (TGJOBS_HOME / "jobs" / "config.json")
 )
 
 SOURCES_FILENAME = "Telegram Sources.md"
 CRITERIA_FILENAME = "Search Criteria.md"
+DEFAULT_LANG = "en"
 
 _MISSING = (
-    "Сканер вакансий ещё не настроен.\n"
-    f"  Нет конфига в {CONFIG_PATH}.\n"
-    "  Запустите /tgjobs-setup в Claude Code, чтобы настроить."
+    "Job scanner is not set up yet.\n"
+    f"  No config at {CONFIG_PATH}.\n"
+    "  Run /tgjobs-setup to configure it."
 )
 
 
@@ -44,21 +54,27 @@ def load() -> dict:
     try:
         data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        print(f"Конфиг {CONFIG_PATH} — некорректный JSON: {exc}", file=sys.stderr)
+        print(f"Config at {CONFIG_PATH} is not valid JSON: {exc}", file=sys.stderr)
         sys.exit(2)
     if not isinstance(data, dict):
-        print(f"Конфиг {CONFIG_PATH} должен быть JSON-объектом. Запустите /tgjobs-setup.", file=sys.stderr)
+        print(f"Config at {CONFIG_PATH} must be a JSON object. Run /tgjobs-setup.", file=sys.stderr)
         sys.exit(2)
     folder = (data.get("folder") or "").strip()
     if not folder:
-        print(f"В конфиге {CONFIG_PATH} нет \"folder\". Запустите /tgjobs-setup.", file=sys.stderr)
+        print(f"Config at {CONFIG_PATH} has no \"folder\". Run /tgjobs-setup.", file=sys.stderr)
         sys.exit(2)
     data["folder"] = pathlib.Path(folder).expanduser()
+    lang = (data.get("lang") or DEFAULT_LANG).strip().lower()
+    data["lang"] = lang if lang in ("en", "ru") else DEFAULT_LANG
     return data
 
 
 def folder() -> pathlib.Path:
     return load()["folder"]
+
+
+def lang() -> str:
+    return load()["lang"]
 
 
 def sources_file() -> pathlib.Path:
@@ -70,17 +86,19 @@ def criteria_file() -> pathlib.Path:
 
 
 def _main() -> int:
-    """Tiny CLI so the /tgjobs command can resolve paths:
+    """Tiny CLI so the /tgjobs command can resolve paths / settings:
 
         python3 config.py folder
         python3 config.py sources-file
         python3 config.py criteria-file
+        python3 config.py lang
     """
     key = sys.argv[1] if len(sys.argv) > 1 else "folder"
     resolver = {
         "folder": folder,
         "sources-file": sources_file,
         "criteria-file": criteria_file,
+        "lang": lang,
     }.get(key)
     if resolver is None:
         print(f"unknown key: {key}", file=sys.stderr)
