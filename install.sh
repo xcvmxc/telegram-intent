@@ -197,18 +197,69 @@ install_claude() {
   say "Claude Code: /tgjobs + /tgjobs-setup → ~/.claude/commands/"
 }
 
+_codex_print_block() {
+  printf '      approval_policy = "on-request"\n      sandbox_mode   = "workspace-write"\n      [sandbox_workspace_write]\n      network_access = true\n      writable_roots = ["%s"]\n' "$TGJOBS_HOME"
+}
+
+# Safely add the sandbox block to ~/.codex/config.toml. Only edits when neither
+# `sandbox_mode` nor `[sandbox_workspace_write]` already exist (to avoid TOML
+# duplicate-key/table hazards); prepends top-level keys, appends the table,
+# validates the result with tomllib, and backs up. Echoes merged|manual.
+_codex_merge() {
+  python3 - "$HOME/.codex/config.toml" "$TGJOBS_HOME" <<'PY'
+import pathlib, sys, shutil
+path, home = pathlib.Path(sys.argv[1]), sys.argv[2]
+orig = path.read_text(encoding="utf-8") if path.exists() else ""
+if ("sandbox_mode" in orig) or ("sandbox_workspace_write" in orig):
+    print("manual"); raise SystemExit
+top = []
+if "approval_policy" not in orig:
+    top.append('approval_policy = "on-request"')
+top.append('sandbox_mode = "workspace-write"')
+head = "\n".join(top) + "\n\n"
+table = f'[sandbox_workspace_write]\nnetwork_access = true\nwritable_roots = ["{home}"]\n'
+body = (orig.rstrip("\n") + "\n\n") if orig.strip() else ""
+new = head + body + table
+try:  # validate before writing (tomllib is 3.11+; skip check if unavailable)
+    import tomllib
+    tomllib.loads(new)
+except ModuleNotFoundError:
+    pass
+except Exception:
+    print("manual"); raise SystemExit
+path.parent.mkdir(parents=True, exist_ok=True)
+if path.exists():
+    shutil.copyfile(path, str(path) + ".tgjobs.bak")
+path.write_text(new, encoding="utf-8")
+print("merged")
+PY
+}
+
 install_codex() {
   for base in "$HOME/.agents/skills" "$HOME/.codex/skills"; do
     write_skill "$base/tgjobs"       tgjobs       "$DESC_JOBS"  "$BODY/tgjobs.md"
     write_skill "$base/tgjobs-setup" tgjobs-setup "$DESC_SETUP" "$BODY/tgjobs-setup.md"
   done
   say "Codex: skills → ~/.agents/skills/ (+ ~/.codex/skills/)"
-  # config.toml needs network + writable_roots; don't auto-edit (TOML table hazard) — instruct.
-  if [ -f "$HOME/.codex/config.toml" ] && grep -q 'sandbox_workspace_write' "$HOME/.codex/config.toml"; then
-    say "Codex: config.toml already has [sandbox_workspace_write] — ensure network_access=true and \"$TGJOBS_HOME\" is in writable_roots."
+
+  # Codex runs shell in a sandbox that (by default) has no network and can't
+  # write outside the project — but /tgjobs needs both (Telegram API + ~/.tgjobs).
+  local do_write=0 ans=""
+  if [ "$ASSUME_YES" -eq 0 ]; then
+    say "Codex needs its sandbox widened (enable network + allow writes to ~/.tgjobs)."
+    tty_read ans "  Add this to ~/.codex/config.toml automatically (with backup)? [Y/n]: "
+    case "$ans" in n|N|no|No|NO) do_write=0;; *) do_write=1;; esac
+  fi
+
+  if [ "$do_write" -eq 1 ] && [ "$(_codex_merge)" = merged ]; then
+    say "Codex: config.toml updated — network + writable_roots. Backup: ~/.codex/config.toml.tgjobs.bak"
   else
-    say "Codex: add this to ~/.codex/config.toml (top-level keys ABOVE any [table]):"
-    printf '      approval_policy = "on-request"\n      sandbox_mode   = "workspace-write"\n      [sandbox_workspace_write]\n      network_access = true\n      writable_roots = ["%s"]\n' "$TGJOBS_HOME"
+    if [ "$do_write" -eq 1 ]; then
+      say "Codex: config.toml already has sandbox settings — didn't touch it. Make sure it has:"
+    else
+      say "Codex: add this to ~/.codex/config.toml (top-level keys ABOVE any [table]):"
+    fi
+    _codex_print_block
   fi
 }
 
