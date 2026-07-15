@@ -100,6 +100,17 @@ Choose English or Russian at install. It sets the conversation language, the
 wording of the two editable files, and the wording of the output file. To switch
 later, re-run the installer with the other `--lang`.
 
+## Updating
+
+`/tgjobs` checks for a newer version at the end of a run (at most once a day) and
+**offers** to update — you just confirm. One update refreshes the shared backend
+and **every agent** the skill is installed in, at once, keeping all your state.
+You can also update on demand:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xcvmxc/telegram-job/main/install.sh | bash -s -- --update
+```
+
 ## How it's put together
 
 ```

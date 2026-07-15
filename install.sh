@@ -14,6 +14,9 @@
 #   ./install.sh --lang en --agent claude,codex
 #   curl -fsSL .../install.sh | bash -s -- --lang ru --agent all
 #
+# Update everything already installed (all agents at once, keeps state):
+#   curl -fsSL .../install.sh | bash -s -- --update
+#
 set -euo pipefail
 
 REPO="xcvmxc/telegram-job"
@@ -27,13 +30,14 @@ say()  { printf '  %s\n' "$1"; }
 head() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 # --- args ----------------------------------------------------------------
-AGENTS=""; LANG_CHOICE=""; ASSUME_YES=0
+AGENTS=""; LANG_CHOICE=""; ASSUME_YES=0; DO_UPDATE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --agent) AGENTS="${2:-}"; shift 2;;
     --agent=*) AGENTS="${1#*=}"; shift;;
     --lang) LANG_CHOICE="${2:-}"; shift 2;;
     --lang=*) LANG_CHOICE="${1#*=}"; shift;;
+    --update) DO_UPDATE=1; shift;;
     -y|--yes) ASSUME_YES=1; shift;;
     -h|--help)
       grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
@@ -62,6 +66,19 @@ if ! command -v uv >/dev/null 2>&1; then
   say "     curl -LsSf https://astral.sh/uv/install.sh | sh"
 fi
 
+# --- update mode: reuse what's already installed -------------------------
+# `--update` refreshes the shared backend AND re-drops the adapter into every
+# agent this skill was installed in (from installed.json), at the same language.
+if [ "$DO_UPDATE" -eq 1 ]; then
+  IJ="$TGJOBS_HOME/installed.json"
+  [ -f "$IJ" ] || { say "✗ nothing to update — $IJ not found. Run the installer first."; exit 1; }
+  AGENTS="$(python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(",".join(d.get("agents",[])))' "$IJ")"
+  LANG_CHOICE="$(python3 -c 'import json,sys;d=json.load(open(sys.argv[1]));print(d.get("lang","en"))' "$IJ")"
+  ASSUME_YES=1
+  [ -n "$AGENTS" ] || { say "✗ installed.json lists no agents."; exit 1; }
+  say "Updating agents from installed.json: $AGENTS (language: $LANG_CHOICE)"
+fi
+
 # --- locate product files (local checkout or download) -------------------
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
 if [ -n "${SELF_DIR}" ] && [ -f "${SELF_DIR}/adapters/en/tgjobs.md" ]; then
@@ -73,6 +90,7 @@ else
   curl -fsSL "$TARBALL" | tar -xz -C "$TMP" || { say "✗ download failed."; exit 1; }
   ROOT="$(cd "$TMP"/*/ && pwd)"
 fi
+VER="$(cat "$ROOT/VERSION" 2>/dev/null || echo 0.0.0)"
 
 # --- detect agents -------------------------------------------------------
 detect() { # detect NAME  -> echo "yes"/"no"
@@ -138,8 +156,9 @@ cp -f "$ROOT"/skill/jobs/*.py "$TGJOBS_HOME/jobs/"
 cp -f "$ROOT"/templates/en/*.md "$TGJOBS_HOME/jobs/templates/en/"
 cp -f "$ROOT"/templates/ru/*.md "$TGJOBS_HOME/jobs/templates/ru/"
 cp -f "$ROOT"/skill/telegram/tg_scan.py "$TGJOBS_HOME/telegram/"
+cp -f "$ROOT/VERSION" "$TGJOBS_HOME/VERSION" 2>/dev/null || true
 printf 'telegram-job-scanner\ninstalled_at=%s\n' "$TS" > "$TGJOBS_HOME/.tgjobs-install"
-say "backend + templates (en/ru) installed"
+say "backend + templates (en/ru) installed  (v${VER})"
 
 # --- migrate an older ~/.claude product install --------------------------
 if [ -f "$HOME/.claude/jobs/.jobscanner" ] && [ ! -f "$TGJOBS_HOME/jobs/config.json" ]; then
@@ -248,7 +267,30 @@ for a in $sel; do
   install_"$a"
 done
 
+# --- record what's installed (agents accumulate across runs) -------------
+# `installed.json` is the source of truth for `--update`: it lists every agent
+# the skill lives in so one update refreshes them all.
+python3 - "$TGJOBS_HOME/installed.json" "$LANG_CHOICE" "$VER" "$TS" $sel <<'PY'
+import json, sys, pathlib
+f = pathlib.Path(sys.argv[1]); lang, ver, ts = sys.argv[2], sys.argv[3], sys.argv[4]
+new = sys.argv[5:]
+try:
+    d = json.loads(f.read_text()) if f.exists() else {}
+except Exception:
+    d = {}
+if not isinstance(d, dict): d = {}
+agents = d.get("agents") if isinstance(d.get("agents"), list) else []
+for a in new:
+    if a not in agents: agents.append(a)
+d.update({"agents": agents, "lang": lang, "version": ver, "updated_at": ts})
+f.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n")
+PY
+
 head "Done"
-say "Backend: ${TGJOBS_HOME}  (language: ${LANG_CHOICE})"
-say "Next: open one of the agents above and run  /tgjobs-setup"
-say "Re-run this installer any time to add another agent."
+say "Backend: ${TGJOBS_HOME}  (v${VER}, language: ${LANG_CHOICE})"
+if [ "$DO_UPDATE" -eq 1 ]; then
+  say "Updated: $sel"
+else
+  say "Next: open one of the agents above and run  /tgjobs-setup"
+  say "Re-run any time to add another agent; /tgjobs will offer updates when available."
+fi
