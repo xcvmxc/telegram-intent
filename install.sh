@@ -34,11 +34,11 @@ head() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 AGENTS=""; LANG_CHOICE=""; SEARCH_MODE=""; ASSUME_YES=0; DO_UPDATE=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --agent) AGENTS="${2:-}"; shift 2;;
+    --agent) AGENTS="${2:-}"; shift; [ $# -gt 0 ] && shift;;
     --agent=*) AGENTS="${1#*=}"; shift;;
-    --lang) LANG_CHOICE="${2:-}"; shift 2;;
+    --lang) LANG_CHOICE="${2:-}"; shift; [ $# -gt 0 ] && shift;;
     --lang=*) LANG_CHOICE="${1#*=}"; shift;;
-    --search-mode|--mode) SEARCH_MODE="${2:-}"; shift 2;;
+    --search-mode|--mode) SEARCH_MODE="${2:-}"; shift; [ $# -gt 0 ] && shift;;
     --search-mode=*|--mode=*) SEARCH_MODE="${1#*=}"; shift;;
     --update) DO_UPDATE=1; shift;;
     -y|--yes) ASSUME_YES=1; shift;;
@@ -105,7 +105,37 @@ PY
 )"
   ASSUME_YES=1
   [ -n "$AGENTS" ] || { say "✗ installed.json lists no agents (or is corrupt) — re-run the installer normally."; exit 1; }
-  say "Updating agents from installed.json: $AGENTS (language: $LANG_CHOICE)"
+  say "Updating agents from installed.json: $AGENTS (language: $LANG_CHOICE, search: $SEARCH_MODE)"
+fi
+
+# --- inherit prior choices on a plain re-run (e.g. adding an agent) -------
+# When not updating and no flag was passed, take lang/search_mode from
+# installed.json so re-running to add an agent doesn't reset them. A missing or
+# invalid stored value stays blank, so the interactive prompt still fires.
+if [ "$DO_UPDATE" -eq 0 ] && [ -f "$TGJOBS_HOME/installed.json" ]; then
+  _IJ="$TGJOBS_HOME/installed.json"
+  if [ -z "$LANG_CHOICE" ]; then
+    LANG_CHOICE="$(python3 - "$_IJ" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1])); l = d.get("lang") if isinstance(d, dict) else None
+except Exception:
+    l = None
+print(l if l in ("en", "ru") else "")
+PY
+)"
+  fi
+  if [ -z "$SEARCH_MODE" ]; then
+    SEARCH_MODE="$(python3 - "$_IJ" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1])); m = d.get("search_mode") if isinstance(d, dict) else None
+except Exception:
+    m = None
+print(m if m in ("links", "text", "both") else "")
+PY
+)"
+  fi
 fi
 
 # --- locate product files (local checkout or download) -------------------

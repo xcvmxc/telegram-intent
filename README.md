@@ -110,16 +110,19 @@ later, re-run the installer with the other `--lang`.
 
 ## Search modes
 
-Chosen at install (also `--search-mode`, or `"search_mode"` in `config.json`):
+Pick one at install:
 
 - **links** (default) — only posts that carry a real application URL.
 - **text** — any post describing a matching role, even without a link; the
   result is the Telegram post itself (with a short excerpt).
 - **both** — links where present, otherwise the post.
 
-The choice is written as a **Results** section in `Search Criteria.md`, so you
-can steer it further in plain language. `text`/`both` classify every text post
-(not just linked ones), so they cost more per run.
+The install sets this in two places: `"search_mode"` in `config.json` (what
+`pull` fetches, and whether the output gets an Excerpt column) **and** a
+**Results** section written into `Search Criteria.md` (how the agent decides a
+match — refine it in plain language). To change the mode later, edit that
+Results section *and* `search_mode` in `config.json`. `text`/`both` classify
+every text post (not just linked ones), so they cost more per run.
 
 ## Updating
 

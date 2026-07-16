@@ -313,10 +313,10 @@ def cmd_save_classifications(args: argparse.Namespace) -> int:
                 " VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     link_norm, link,
-                    (ex.get("position") or "").strip(),
-                    (ex.get("company") or "").strip(),
+                    (ex.get("position").strip() if isinstance(ex.get("position"), str) else ""),
+                    (ex.get("company").strip() if isinstance(ex.get("company"), str) else ""),
                     msg_permalink, msg_date, ch,
-                    (ex.get("excerpt") or "").strip()[:200],
+                    (ex.get("excerpt").strip()[:200] if isinstance(ex.get("excerpt"), str) else ""),
                     now,
                 ),
             )

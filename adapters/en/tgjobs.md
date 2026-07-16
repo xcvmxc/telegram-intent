@@ -36,8 +36,9 @@ user to run `/tgjobs-setup`.
     python3 ~/.tgjobs/jobs/scan.py pull
 
 Iterates every channel in `Telegram Sources.md`, resumes each from its cursor
-(or the last 3 days on a channel's first scan), stores any message that has a
-URL, and prints a JSON summary.
+(or the last 3 days on a channel's first scan), stores each message with a URL
+(in `links` mode) or any text post (in `text`/`both` mode), and prints a JSON
+summary.
 
 **Capture `run_start` from the summary** — you pass it to `emit-files` at the
 end so the output contains only jobs from this run.
