@@ -32,6 +32,65 @@ SESSION_FILE = TG_DIR / "jobscan.session"
 # Templates ship next to this script, one subdir per language:
 #   $TGJOBS_HOME/jobs/templates/{en,ru}/{Search Criteria.md, Telegram Sources.md}
 TEMPLATES_DIR = pathlib.Path(__file__).resolve().parent / "templates"
+INSTALLED_JSON = config.TGJOBS_HOME / "installed.json"
+
+# Appended to the scaffolded Search Criteria so the human sees (and can edit)
+# how results are formed for the chosen search mode. Keyed by [lang][mode].
+MODE_SECTIONS = {
+    "en": {
+        "links": (
+            "\n## Results\n\n"
+            "Match on **apply links**: keep a posting only when it has a real"
+            " application URL fitting the criteria above. The result is that link.\n"
+        ),
+        "text": (
+            "\n## Results\n\n"
+            "Match on **whole posts**: keep a Telegram post when it describes a"
+            " fitting role — even without an apply link. The result is the post"
+            " itself (its Telegram link); position/company come from the text.\n"
+        ),
+        "both": (
+            "\n## Results\n\n"
+            "Match on **links and posts**: if a fitting posting has an apply link,"
+            " the result is that link; if it has no link but the post itself is a"
+            " fitting role, the result is the post (its Telegram link). Keep only"
+            " what fits the criteria above.\n"
+        ),
+    },
+    "ru": {
+        "links": (
+            "\n## Как формируется результат\n\n"
+            "Ищем по **apply-ссылкам**: оставляй вакансию, только если у неё есть"
+            " настоящая ссылка отклика, подходящая под критерии выше. Результат —"
+            " эта ссылка.\n"
+        ),
+        "text": (
+            "\n## Как формируется результат\n\n"
+            "Ищем по **постам целиком**: оставляй пост, если он описывает подходящую"
+            " роль — даже без ссылки отклика. Результат — сам пост (ссылка на него"
+            " в Telegram); должность/компанию бери из текста.\n"
+        ),
+        "both": (
+            "\n## Как формируется результат\n\n"
+            "Ищем по **ссылкам и постам**: если у подходящей вакансии есть"
+            " apply-ссылка — результат это ссылка; если ссылки нет, но сам пост —"
+            " подходящая роль, результат это пост (ссылка на него в Telegram)."
+            " Оставляй только то, что подходит под критерии выше.\n"
+        ),
+    },
+}
+
+
+def _default_mode() -> str:
+    """Search mode chosen at install (from installed.json), else the default."""
+    try:
+        d = json.loads(INSTALLED_JSON.read_text(encoding="utf-8"))
+        m = str(d.get("search_mode", "")).strip().lower()
+        if m in config.SEARCH_MODES:
+            return m
+    except Exception:  # noqa: BLE001 - any read/parse failure => default
+        pass
+    return config.DEFAULT_MODE
 
 
 def cmd_check(_args: argparse.Namespace) -> int:
@@ -73,10 +132,14 @@ def cmd_init(args: argparse.Namespace) -> int:
     lang = (args.lang or config.DEFAULT_LANG).strip().lower()
     if lang not in ("en", "ru"):
         lang = config.DEFAULT_LANG
+    mode = (getattr(args, "search_mode", None) or _default_mode()).strip().lower()
+    if mode not in config.SEARCH_MODES:
+        mode = config.DEFAULT_MODE
 
     config.CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
     config.CONFIG_PATH.write_text(
-        json.dumps({"folder": str(folder), "lang": lang, "export_dedup_days": 3},
+        json.dumps({"folder": str(folder), "lang": lang,
+                    "search_mode": mode, "export_dedup_days": 3},
                    ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
@@ -94,12 +157,17 @@ def cmd_init(args: argparse.Namespace) -> int:
             print(f"template missing: {src}", file=sys.stderr)
             return 2
         shutil.copyfile(src, dest)
+        if filename == config.CRITERIA_FILENAME:
+            section = MODE_SECTIONS.get(lang, MODE_SECTIONS["en"]).get(mode, "")
+            with dest.open("a", encoding="utf-8") as fh:
+                fh.write(section)
         scaffolded.append(str(dest))
 
     print(json.dumps({
         "config_written": str(config.CONFIG_PATH),
         "folder": str(folder),
         "lang": lang,
+        "search_mode": mode,
         "scaffolded": scaffolded,
         "already_existed": skipped,
     }, ensure_ascii=False, indent=2))
@@ -119,6 +187,7 @@ def cmd_status(_args: argparse.Namespace) -> int:
     print(json.dumps({
         "folder": str(data["folder"]),
         "lang": data["lang"],
+        "search_mode": data["search_mode"],
         "sources_file": str(config.sources_file()),
         "criteria_file": str(config.criteria_file()),
         "creds_exist": CREDS_FILE.exists(),
@@ -141,6 +210,7 @@ def main() -> int:
     p_init = sub.add_parser("init", help="Write config.json and scaffold editable files.")
     p_init.add_argument("--folder", required=True)
     p_init.add_argument("--lang", default=config.DEFAULT_LANG, choices=["en", "ru"])
+    p_init.add_argument("--search-mode", default=None, choices=list(config.SEARCH_MODES))
 
     sub.add_parser("status", help="Print current config + DB counts.")
 

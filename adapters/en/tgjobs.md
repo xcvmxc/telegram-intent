@@ -80,6 +80,12 @@ If a post lists several roles each with its own link, emit one entry per role.
 If none of the URLs are real vacancies, return `extractions: []` — the message
 is still marked processed so it isn't re-checked.
 
+**Follow the "Results" section of the criteria** — it says whether to match on
+apply links, whole posts, or both. When it treats a link-less post as a result,
+set `link` to the message `permalink` and add a one-line `excerpt` (a short
+quote from the post); position/company come from the text. For link results,
+`link` is the apply URL and `excerpt` can be omitted.
+
 Reply with one array and save it:
 
     python3 ~/.tgjobs/jobs/scan.py save-classifications --json '<JSON>'

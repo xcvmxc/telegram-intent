@@ -11,8 +11,9 @@
 #   curl -fsSL https://raw.githubusercontent.com/xcvmxc/telegram-job/main/install.sh | bash
 #
 # Non-interactive:
-#   ./install.sh --lang en --agent claude,codex
+#   ./install.sh --lang en --agent claude,codex --search-mode both
 #   curl -fsSL .../install.sh | bash -s -- --lang ru --agent all
+#   # --search-mode links|text|both  (default links)
 #
 # Update everything already installed (all agents at once, keeps state):
 #   curl -fsSL .../install.sh | bash -s -- --update
@@ -30,13 +31,15 @@ say()  { printf '  %s\n' "$1"; }
 head() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 # --- args ----------------------------------------------------------------
-AGENTS=""; LANG_CHOICE=""; ASSUME_YES=0; DO_UPDATE=0
+AGENTS=""; LANG_CHOICE=""; SEARCH_MODE=""; ASSUME_YES=0; DO_UPDATE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --agent) AGENTS="${2:-}"; shift 2;;
     --agent=*) AGENTS="${1#*=}"; shift;;
     --lang) LANG_CHOICE="${2:-}"; shift 2;;
     --lang=*) LANG_CHOICE="${1#*=}"; shift;;
+    --search-mode|--mode) SEARCH_MODE="${2:-}"; shift 2;;
+    --search-mode=*|--mode=*) SEARCH_MODE="${1#*=}"; shift;;
     --update) DO_UPDATE=1; shift;;
     -y|--yes) ASSUME_YES=1; shift;;
     -h|--help)
@@ -91,6 +94,15 @@ except Exception:
 print(l if l in ("en", "ru") else "en")
 PY
 )"
+  SEARCH_MODE="$(python3 - "$IJ" <<'PY'
+import json, sys
+try:
+    d = json.load(open(sys.argv[1])); m = d.get("search_mode") if isinstance(d, dict) else None
+except Exception:
+    m = None
+print(m if m in ("links", "text", "both") else "links")
+PY
+)"
   ASSUME_YES=1
   [ -n "$AGENTS" ] || { say "✗ installed.json lists no agents (or is corrupt) — re-run the installer normally."; exit 1; }
   say "Updating agents from installed.json: $AGENTS (language: $LANG_CHOICE)"
@@ -129,6 +141,18 @@ if [ -z "$LANG_CHOICE" ] && [ "$ASSUME_YES" -eq 0 ]; then
 fi
 case "${LANG_CHOICE:-en}" in ru) LANG_CHOICE=ru;; *) LANG_CHOICE=en;; esac
 say "Language: ${LANG_CHOICE}"
+
+# --- choose what to search (links / text / both) -------------------------
+if [ -z "$SEARCH_MODE" ] && [ "$ASSUME_YES" -eq 0 ]; then
+  head "What should /tgjobs surface?"
+  say "1) apply links      only posts with an application link (default)"
+  say "2) text posts       any post describing a matching role"
+  say "3) both             links where present, otherwise the post itself"
+  tty_read _m "  Choose [1]: "
+  case "$_m" in 2|text) SEARCH_MODE=text;; 3|both) SEARCH_MODE=both;; *) SEARCH_MODE=links;; esac
+fi
+case "${SEARCH_MODE:-links}" in text) SEARCH_MODE=text;; both) SEARCH_MODE=both;; *) SEARCH_MODE=links;; esac
+say "Search: ${SEARCH_MODE}"
 
 # --- choose agents -------------------------------------------------------
 mark() { [ "$1" = yes ] && printf '[detected]' || printf '[not found]'; }
@@ -354,10 +378,11 @@ done
 # --- record what's installed (agents accumulate across runs) -------------
 # `installed.json` is the source of truth for `--update`: it lists every agent
 # the skill lives in so one update refreshes them all.
-python3 - "$TGJOBS_HOME/installed.json" "$LANG_CHOICE" "$VER" "$TS" $sel <<'PY'
+python3 - "$TGJOBS_HOME/installed.json" "$LANG_CHOICE" "$VER" "$TS" "$SEARCH_MODE" $sel <<'PY'
 import json, sys, pathlib
-f = pathlib.Path(sys.argv[1]); lang, ver, ts = sys.argv[2], sys.argv[3], sys.argv[4]
-new = sys.argv[5:]
+f = pathlib.Path(sys.argv[1])
+lang, ver, ts, mode = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+new = sys.argv[6:]
 try:
     d = json.loads(f.read_text()) if f.exists() else {}
 except Exception:
@@ -366,12 +391,12 @@ if not isinstance(d, dict): d = {}
 agents = d.get("agents") if isinstance(d.get("agents"), list) else []
 for a in new:
     if a not in agents: agents.append(a)
-d.update({"agents": agents, "lang": lang, "version": ver, "updated_at": ts})
+d.update({"agents": agents, "lang": lang, "search_mode": mode, "version": ver, "updated_at": ts})
 f.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n")
 PY
 
 head "Done"
-say "Backend: ${TGJOBS_HOME}  (v${VER}, language: ${LANG_CHOICE})"
+say "Backend: ${TGJOBS_HOME}  (v${VER}, language: ${LANG_CHOICE}, search: ${SEARCH_MODE})"
 if [ "$DO_UPDATE" -eq 1 ]; then
   say "Updated: $sel"
 else

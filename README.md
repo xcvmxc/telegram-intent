@@ -44,8 +44,8 @@ every agent you install it into uses the same channels, criteria and history.
 
 ## Install
 
-**One command, no cloning.** It asks which language and which agent(s) to set
-up, then installs:
+**One command, no cloning.** It asks which language, **what to search** (apply
+links / text posts / both), and which agent(s), then installs:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xcvmxc/telegram-job/main/install.sh | bash
@@ -55,7 +55,7 @@ Prefer non-interactive? Pass flags (re-run any time to add another agent):
 
 ```bash
 curl -fsSL .../install.sh | bash -s -- --lang en --agent claude,codex
-# --lang en|ru   --agent claude|codex|gemini|cursor|all (comma-separated)
+# --lang en|ru   --agent claude|codex|gemini|cursor|all   --search-mode links|text|both
 ```
 
 <details><summary>From a clone</summary>
@@ -107,6 +107,19 @@ dropped regardless.
 Choose English or Russian at install. It sets the conversation language, the
 wording of the two editable files, and the wording of the output file. To switch
 later, re-run the installer with the other `--lang`.
+
+## Search modes
+
+Chosen at install (also `--search-mode`, or `"search_mode"` in `config.json`):
+
+- **links** (default) — only posts that carry a real application URL.
+- **text** — any post describing a matching role, even without a link; the
+  result is the Telegram post itself (with a short excerpt).
+- **both** — links where present, otherwise the post.
+
+The choice is written as a **Results** section in `Search Criteria.md`, so you
+can steer it further in plain language. `text`/`both` classify every text post
+(not just linked ones), so they cost more per run.
 
 ## Updating
 

@@ -39,6 +39,8 @@ CONFIG_PATH = pathlib.Path(
 SOURCES_FILENAME = "Telegram Sources.md"
 CRITERIA_FILENAME = "Search Criteria.md"
 DEFAULT_LANG = "en"
+SEARCH_MODES = ("links", "text", "both")
+DEFAULT_MODE = "links"
 
 _MISSING = (
     "Job scanner is not set up yet.\n"
@@ -72,6 +74,9 @@ def load() -> dict:
         data["export_dedup_days"] = max(0, int(data.get("export_dedup_days", 3)))
     except (TypeError, ValueError):
         data["export_dedup_days"] = 3
+    # What /tgjobs surfaces: apply links (default), whole text posts, or both.
+    mode = str(data.get("search_mode") or DEFAULT_MODE).strip().lower()
+    data["search_mode"] = mode if mode in SEARCH_MODES else DEFAULT_MODE
     return data
 
 
@@ -81,6 +86,10 @@ def folder() -> pathlib.Path:
 
 def lang() -> str:
     return load()["lang"]
+
+
+def search_mode() -> str:
+    return load()["search_mode"]
 
 
 def sources_file() -> pathlib.Path:
@@ -105,6 +114,7 @@ def _main() -> int:
         "sources-file": sources_file,
         "criteria-file": criteria_file,
         "lang": lang,
+        "search-mode": search_mode,
     }.get(key)
     if resolver is None:
         print(f"unknown key: {key}", file=sys.stderr)
