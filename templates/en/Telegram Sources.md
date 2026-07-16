@@ -1,12 +1,14 @@
 # Telegram sources to scan
 #
-# Add ONE channel or group per line. Lines starting with "#" are ignored
-# (that's how these instructions stay out of the way). Blank lines are fine.
+# List each channel or group as a simple bullet, one per line:
+#     - @channelname
+# Lines starting with "#" are ignored (that's how these notes stay out of the
+# way); blank lines are fine. A plain line without the "- " also works.
 #
 # To change which channels are scanned, just edit this list and run /tg-intent again.
 #
 # ---------------------------------------------------------------------------
-# ACCEPTED FORMATS
+# ACCEPTED FORMATS (put any of these after the "- ")
 # ---------------------------------------------------------------------------
 #   @channelname                 public channel or group (username)
 #   https://t.me/channelname     public link — same as @channelname
@@ -29,11 +31,11 @@
 #   uv run --with telethon python ~/.tgjobs/telegram/tg_scan.py list
 #
 # ---------------------------------------------------------------------------
-# EXAMPLES (these are placeholders — delete them and add your own channels)
+# EXAMPLES (placeholders — delete them and add your own)
 # ---------------------------------------------------------------------------
-# @example_jobs_channel
-# https://t.me/another_public_jobs_channel
-# https://t.me/+ExamplePrivateInviteHash
-# -1001234567890
+# - @example_jobs_channel
+# - https://t.me/another_public_jobs_channel
+# - https://t.me/+ExamplePrivateInviteHash
+# - -1001234567890
 
-# ↓↓↓  add your channels below this line  ↓↓↓
+# ↓↓↓  add your channels below, one bullet per line  ↓↓↓
