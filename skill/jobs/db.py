@@ -123,7 +123,11 @@ def _migrate_add_intent(conn: sqlite3.Connection) -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS ix_jobs_extracted_at ON jobs(extracted_at)")
         conn.execute("COMMIT")
     except Exception:
-        conn.execute("ROLLBACK")
+        # conn.rollback() (the method) is a no-op when no transaction is open,
+        # so a failed BEGIN IMMEDIATE (e.g. "database is locked") propagates its
+        # real error instead of being masked by "cannot rollback" — unlike a
+        # raw `execute("ROLLBACK")`, which raises when no transaction is active.
+        conn.rollback()
         raise
     finally:
         conn.isolation_level = prev_isolation

@@ -280,6 +280,31 @@ class TestMigration(Base):
             "SELECT name FROM sqlite_master WHERE type='table'")}
         self.assertNotIn("jobs_new", names)
 
+    def test_h_begin_failure_surfaces_real_error_not_rollback_mask(self):
+        # A pre-intent DB whose BEGIN IMMEDIATE fails (another connection holds
+        # an EXCLUSIVE lock) must surface the REAL "database is locked" error,
+        # not a masking "cannot rollback - no transaction is active".
+        c0 = sqlite3.connect(db.DB_PATH)
+        c0.execute("CREATE TABLE jobs (link_norm TEXT PRIMARY KEY, link TEXT"
+                   " NOT NULL, extracted_at TEXT NOT NULL, excerpt TEXT)")
+        c0.commit()
+        c0.close()
+        locker = sqlite3.connect(db.DB_PATH)
+        locker.isolation_level = None
+        locker.execute("BEGIN EXCLUSIVE")
+        try:
+            migrating = sqlite3.connect(db.DB_PATH, timeout=0)  # fail fast
+            migrating.row_factory = sqlite3.Row
+            with self.assertRaises(sqlite3.OperationalError) as ctx:
+                db._migrate_add_intent(migrating)
+            msg = str(ctx.exception).lower()
+            self.assertIn("lock", msg)
+            self.assertNotIn("cannot rollback", msg)
+            migrating.close()
+        finally:
+            locker.execute("ROLLBACK")
+            locker.close()
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
