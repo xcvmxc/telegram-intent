@@ -1,5 +1,7 @@
 # Telegram Job Scanner
 
+**English** · [Русский](README.ru.md)
+
 A skill for AI coding agents that scans the Telegram channels **you already
 follow**, keeps only the vacancies matching what you're looking for, and writes
 them to a tidy Markdown file — on demand, with one command: `/tgjobs`.
