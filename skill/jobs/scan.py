@@ -48,8 +48,8 @@ CHANNEL_MSG_LIMIT = 500
 def load_sources() -> list[str]:
     """Read `<folder>/Telegram Sources.md`.
 
-    Format is deliberately dead-simple: one channel/group reference per line.
-    Lines starting with '#' are comments (used for the header instructions),
+    One channel/group reference per line, optionally written as a Markdown
+    bullet ("- @channel", "* @channel"). Lines starting with '#' are comments,
     blank lines are ignored. Everything else is a source ref: @username,
     t.me/username, t.me/+invite, or a numeric -100… id.
     """
@@ -60,6 +60,10 @@ def load_sources() -> list[str]:
     seen: set[str] = set()
     for raw in path.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
+        # Strip a leading bullet marker ("- @x") — but not a numeric id
+        # ("-100…"), where the dash is followed by a digit, not whitespace.
+        if line[:1] in "-*+•" and line[1:2] in (" ", "\t"):
+            line = line[2:].strip()
         if not line or line.startswith("#"):
             continue
         if line not in seen:
