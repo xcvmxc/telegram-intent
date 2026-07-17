@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Config for the Telegram job scanner.
+"""Config for the Telegram Intent Scanner.
 
 Everything lives under TGJOBS_HOME (default ~/.tgjobs), so the product is
 agent-neutral — Claude Code, Codex, Gemini and Cursor all point at the same
@@ -42,7 +42,7 @@ CRITERIA_FILENAME = "Search Criteria.md"
 DEFAULT_LANG = "en"
 
 _MISSING = (
-    "Job scanner is not set up yet.\n"
+    "Telegram Intent Scanner is not set up yet.\n"
     f"  No config at {CONFIG_PATH}.\n"
     "  Run /tg-intent-setup to configure it."
 )

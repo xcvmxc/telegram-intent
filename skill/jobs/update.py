@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Update check for the Telegram job scanner.
+"""Update check for the Telegram Intent Scanner.
 
 `check` compares the installed VERSION against the latest on the repo's main
 branch — at most once per day, and never blocks the pipeline. The /tg-intent

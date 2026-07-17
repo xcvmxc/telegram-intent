@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Setup helper for the Telegram job scanner.
+"""Setup helper for the Telegram Intent Scanner.
 
 Called by the /tg-intent-setup wizard so each step is deterministic and testable.
 
@@ -143,7 +143,7 @@ def cmd_status(_args: argparse.Namespace) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Setup helper for the Telegram job scanner.")
+    parser = argparse.ArgumentParser(description="Setup helper for the Telegram Intent Scanner.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("check", help="Report install/config state.")
