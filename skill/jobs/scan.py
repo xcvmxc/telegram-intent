@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Telegram job scanner.
+"""Telegram Intent Scanner.
 
 Pipeline (subcommands driven by the /tg-intent command in whichever agent):
 
@@ -770,7 +770,7 @@ def cmd_emit_files(args: argparse.Namespace) -> int:
 # --- entry point ---------------------------------------------------------
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Telegram job scanner.")
+    parser = argparse.ArgumentParser(description="Telegram Intent Scanner.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     sub.add_parser("pull", help="Fetch new TG messages into the DB.")

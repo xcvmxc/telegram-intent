@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installer for the Telegram job scanner.
+# Installer for the Telegram Intent Scanner.
 #
 # Installs a shared, agent-neutral backend into ~/.tgjobs and a thin /tg-intent
 # command adapter into each LLM coding agent you choose (Claude Code, Codex,
@@ -57,7 +57,7 @@ tty_read() {  # tty_read VAR PROMPT
   printf -v "$__v" '%s' "$__ans"
 }
 
-head "Telegram job scanner — install"
+head "Telegram Intent Scanner — install"
 
 # --- prerequisites -------------------------------------------------------
 command -v python3 >/dev/null 2>&1 || { say "✗ python3 is required."; exit 1; }
@@ -207,11 +207,11 @@ fi
 BODY="$ROOT/adapters/$LANG_CHOICE"
 # localized skill descriptions
 if [ "$LANG_CHOICE" = ru ]; then
-  DESC_JOBS="Просканировать Telegram-каналы пользователя на новые вакансии по его критериям и записать подходящие в Markdown. Триггеры: /tg-intent, «проверь вакансии»."
-  DESC_SETUP="Настроить сканер вакансий Telegram: API-ключ, вход, рабочая папка. Триггер: /tg-intent-setup."
+  DESC_JOBS="Просканировать Telegram-каналы пользователя на новые посты по его интентам (вакансии, объявления, скидки — что задано в Search Criteria) и записать подходящие в Markdown. Триггеры: /tg-intent, «проверь телеграм»."
+  DESC_SETUP="Настроить Telegram Intent Scanner: API-ключ, вход, папка результатов. Триггер: /tg-intent-setup."
 else
-  DESC_JOBS="Scan the user's Telegram channels for new job posts matching their Search Criteria and write matches to a Markdown file. Trigger on /tg-intent or 'scan telegram jobs'."
-  DESC_SETUP="Set up the Telegram job scanner: API key, login, job folder. Trigger on /tg-intent-setup."
+  DESC_JOBS="Scan the user's Telegram channels for new posts matching their intents (jobs, listings, deals — whatever the Search Criteria defines) and write matches to Markdown files. Trigger on /tg-intent or 'scan telegram'."
+  DESC_SETUP="Set up the Telegram Intent Scanner: API key, login, output folder. Trigger on /tg-intent-setup."
 fi
 
 write_skill() { # DIR NAME DESC BODYFILE

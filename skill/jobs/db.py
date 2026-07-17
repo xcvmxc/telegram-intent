@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""SQLite backend for the Telegram job scanner.
+"""SQLite backend for the Telegram Intent Scanner.
 
 Tables:
 
